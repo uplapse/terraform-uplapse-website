@@ -113,5 +113,7 @@ README, "Development").
 ## Publishing
 
 The registry publishes modules from a public GitHub repository named `terraform-<provider>-<name>`: create
-`uplapse/terraform-uplapse-website`, push `main`, add a licence, then in the registry choose **Publish > Module** and
-tag `v0.1.0`. Publish the provider first: the module's tests need it from the registry.
+`uplapse/terraform-uplapse-website`, push `main`, then in the registry choose **Publish > Module** and tag `v0.1.0`.
+Licence: MPL-2.0 (`LICENSE`), like the provider. Publish the provider first: the GitHub workflow's tests need it from
+the registry. Development and CI live on GitLab (`upmonitor/terraform-uplapse-website`); its pipeline builds the
+provider from `upmonitor/terraform-provider-uplapse` until it is published.

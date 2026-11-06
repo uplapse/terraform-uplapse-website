@@ -1,0 +1,30 @@
+# Format, validate and the mocked unit tests (tests/website.tftest.hcl), then the integration test
+# (tests/integration.sh: the real provider against its in-memory mock API). Until uplapse/uplapse is on the Terraform
+# Registry, the job builds the provider from upmonitor/terraform-provider-uplapse and points Terraform at it with a
+# dev override. The GitHub workflow (.github/workflows/test.yml) is for the public mirror, once the provider is published.
+stages:
+  - test
+
+variables:
+  TERRAFORM_VERSION: "1.16.6"
+  PROVIDER_DIR: /tmp/provider
+
+test:
+  stage: test
+  image: golang:1.26.8-bookworm
+  tags: [upmonitor]
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq unzip python3 >/dev/null
+    - curl -fsSLo /tmp/terraform.zip "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+    - unzip -o -q /tmp/terraform.zip -d /usr/local/bin && terraform version
+    - '[ -d "$PROVIDER_DIR" ] || git clone -q --depth 1 "https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.com/upmonitor/terraform-provider-uplapse.git" "$PROVIDER_DIR"'
+    - (cd "$PROVIDER_DIR" && go build -o /tmp/tfbin/terraform-provider-uplapse .)
+    - printf 'provider_installation {\n  dev_overrides { "uplapse/uplapse" = "/tmp/tfbin" }\n  direct {}\n}\n' > /tmp/dev.tfrc
+  script:
+    - terraform fmt -check -recursive
+    - TF_CLI_CONFIG_FILE=/tmp/dev.tfrc terraform validate -no-color
+    - TF_CLI_CONFIG_FILE=/tmp/dev.tfrc terraform test -no-color
+    - tests/integration.sh
